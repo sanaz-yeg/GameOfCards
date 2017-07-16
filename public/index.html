@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+
+<body ng-app="playGame" ng-controller="mainCtrl" class="playGame">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular-animate.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular-aria.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular-messages.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angular_material/1.1.0/angular-material.min.js"></script>
+
+    <button ng-click="showDeck()">Get Deck of Cards</button>
+    <button ng-click="shuffle()">Shuffle Deck of Cards</button>
+    <div>
+        <label> number of cards to draw:
+            <input type="number" name="numberCards" ng-model="draw.number" required>
+            </label>
+        <button ng-click="draw()" ng-disabled="drawBtn">Draw Card(s)</button>
+    </div>
+    <div>
+        <label> number of cards to draw and sort:
+            <input type="number" name="numberSortCards" ng-model="drawSort.number" required>
+            </label>
+        <button ng-click="drawSort()">Draw and Sort Card(s)</button>
+    </div>
+    <h2> LEFT in the pack: </h2>
+    <p ng-repeat="v in cards">{{v.value.value}} of {{v.suit.suit}}</p>
+    <h2> DRAWN from the pack: </h2>
+    <p ng-repeat="v in drawnCards">{{v.value.value}} of {{v.suit.suit}}</p>
+    <script>
+        var app = angular.module('playGame', []);
+        var deck = {};
+        app.controller('mainCtrl', ['$scope', '$http', '$q',
+            function ($scope, $http, $q) {
+                //showDeck gets the deck
+                $scope.showDeck = function () {
+                    $http({
+                        method: 'GET',
+                        url: 'http://localhost:6006/deck'
+                    }).then(function (response) {
+                        $scope.cards = response.data;
+                        $scope.drawnCards = {};
+                    })
+                }
+                //to shuffle a deck is requested using GET and then shuffled using post
+                $scope.shuffle = function () {
+                    return $q(function (resolve, reject) {
+                        $http({
+                            method: 'GET',
+                            url: 'http://localhost:6006/deck'
+                        }).then(function (resp) {
+                            $http({
+                                method: 'POST',
+                                url: 'http://localhost:6006/shuffle',
+                                data: resp.data
+                            }).then(function (response) {
+                                $scope.cards = response.data;
+                                $scope.drawnCards = {}
+                                resolve(response)
+                            });
+                        }, function (err) {
+                            reject(err);
+                        });
+                    })
+                }
+                //to draw the deck is shuffled then posted to pick a number of cards based on the user input.
+                $scope.draw = function () {
+                    var num = parseInt($scope.draw.number);
+                    if (num > 0 && num < 53) {
+                        $scope.shuffle().then(function (response) {
+                            console.log(response);
+                            $http({
+                                method: 'POST',
+                                url: 'http://localhost:6006/pickCards/' + num,
+                                data: response.data
+                            }).then(function (response, err) {
+                                if (err) {
+                                    console.log("error: " + err)
+                                }
+                                else {
+                                    deck = response.data.deck;
+                                    $scope.cards = deck;
+                                    $scope.drawnCards = response.data.pickedCards;
+                                }
+                            });
+                        });
+                    }
+                    else {
+                        console.log("Please enter a number between 1 and 52")
+                    }
+                }
+                //to draw and sort a shuffled deck is requested, then number of cards are drawn and sorted.
+                $scope.drawSort = function () {
+                    var num = parseInt($scope.drawSort.number);
+                    if (num > 0 && num < 53) {
+                        $scope.shuffle().then(function (response) {
+                            console.log(response);
+                            $http({
+                                method: 'POST',
+                                url: 'http://localhost:6006/pickCards/Sort/' + num,
+                                data: response.data
+                            }).then(function (response, err) {
+                                console.log(response);
+                                if (err) {
+                                    console.log("error: " + err)
+                                }
+                                else {
+                                    deck = response.data.deck;
+                                    $scope.cards = deck;
+                                    $scope.drawnCards = response.data.pickedCards;
+                                }
+                            });
+                        });
+                    }
+                    else {
+                        console.log("Please enter a number between 1 and 52")
+                    }
+                }
+            }]);
+    </script>
+</body>
+
+</html>
